@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /checkout
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /my-orders
+Disallow: /payment/*
+Disallow: /api/
+Disallow: /__test__/*
+
+# Sitemap
+Sitemap: https://follacouffin.tn/sitemap.xml
+
+# Crawl-delay: 1

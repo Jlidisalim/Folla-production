@@ -1,0 +1,203 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* DARIDO Design System - Warm Golden Palette */
+
+@layer base {
+  :root {
+    /* Brand Colors */
+    --background: 0 0% 100%; /* #FCFCF7 */
+    --foreground: 0 0% 100%; /* dark text */
+
+    --card: 60 33% 98%; /* same as background */
+    --card-foreground: 36 100% 15%;
+
+    --popover: 60 33% 98%;
+    --popover-foreground: 36 100% 15%;
+
+    /* Primary - Golden Brown */
+    --primary: 0 0% 96%; /* #BF932A */
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Beige */
+    --secondary: 31 44% 66%; /* #ECDCAB */
+    --secondary-foreground: 36 100% 15%;
+
+    /* Muted - Sand */
+    /* Muted - Subtle grays */
+    --muted: 0 0% 96%;
+    --muted-foreground: 25 10% 45%;
+
+    /* Accent - Dark Brown */
+    --accent: 36 100% 31%; /* #9E6200 */
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive (keep red for warnings/sales) */
+    --destructive: 0 85% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and inputs */
+    --border: 43 20% 80%;
+    --input: 43 20% 80%;
+    --ring: 41 63% 45%;
+
+    /* Shadows */
+    --shadow-product: 0 2px 8px -2px hsl(var(--primary) / 0.1);
+    --shadow-category: 0 4px 12px -4px hsl(var(--primary) / 0.15);
+    --shadow-header: 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+
+    /* Typography - Inter with system fallbacks */
+    --font-heading: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-quick: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --radius: 0.5rem;
+
+    /* Sidebar */
+    --sidebar-background: 46 68% 80%; /* Beige */
+    --sidebar-foreground: 36 100% 15%;
+    --sidebar-primary: 41 63% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 43 61% 67%;
+    --sidebar-accent-foreground: 36 100% 15%;
+    --sidebar-border: 43 20% 80%;
+    --sidebar-ring: 41 63% 45%;
+  }
+
+  .dark {
+    --background: 36 100% 10%;
+    --foreground: 60 33% 98%;
+
+    --card: 36 100% 10%;
+    --card-foreground: 60 33% 98%;
+
+    --popover: 36 100% 10%;
+    --popover-foreground: 60 33% 98%;
+
+    --primary: 46 68% 80%;
+    --primary-foreground: 36 100% 15%;
+
+    --secondary: 41 63% 45%;
+    --secondary-foreground: 60 33% 98%;
+
+    --muted: 36 100% 20%;
+    --muted-foreground: 46 50% 70%;
+
+    --accent: 43 61% 67%;
+    --accent-foreground: 36 100% 15%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 36 100% 20%;
+    --input: 36 100% 20%;
+    --ring: 46 68% 80%;
+
+    --sidebar-background: 36 100% 15%;
+    --sidebar-foreground: 60 33% 98%;
+    --sidebar-primary: 41 63% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 43 61% 67%;
+    --sidebar-accent-foreground: 36 100% 15%;
+    --sidebar-border: 36 100% 20%;
+    --sidebar-ring: 46 68% 80%;
+  }
+}
+
+/* Focus ring for form controls */
+@layer base {
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: #3b82f6 !important; /* blue-500 */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  }
+
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: #3b82f6 !important;
+  }
+}
+
+/* Skeleton shimmer animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted) / 0.5) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer {
+    animation: none;
+    background: hsl(var(--muted));
+  }
+}
+
+/* Vente Flash blinking animation */
+@keyframes flash-blink {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 4px 15px rgba(251, 146, 60, 0.45);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.95);
+    box-shadow: 0 2px 8px rgba(251, 146, 60, 0.25);
+  }
+}
+
+.animate-flash-blink {
+  animation: flash-blink 1.2s ease-in-out infinite;
+}
+
+/* Faster flash effect */
+@keyframes flash-rapid {
+  0%, 100% {
+    opacity: 1;
+    background-position: 0% 50%;
+  }
+  25% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+    background-position: 100% 50%;
+  }
+  75% {
+    opacity: 0.6;
+  }
+}
+
+.animate-flash-rapid {
+  background-size: 200% 200%;
+  animation: flash-rapid 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-flash-blink,
+  .animate-flash-rapid {
+    animation: none;
+  }
+}
+

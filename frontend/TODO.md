@@ -1,0 +1,9 @@
+- [x] Import useProducts hook in Index.tsx
+- [x] Use useProducts() to fetch all products in Index component
+- [x] Handle loading and error states in Index.tsx
+- [x] Create a function to format category slug to display title
+- [x] Dynamically get unique categories from fetched products
+- [x] Generate ProductSection components for each category dynamically
+- [x] Pass fetched products to Header component
+- [x] Remove static product imports and hardcoded filtering
+- [x] Test the dynamic rendering
