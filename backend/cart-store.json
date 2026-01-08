@@ -1,0 +1,18 @@
+{
+  "user_33KgC2Bl7uosL9WRitgvN0k5kJh": [
+    {
+      "id": "undefined",
+      "title": "Panier de rangement",
+      "price": 0,
+      "quantity": 1,
+      "image": "http://localhost:4002/products/uploads/1764271712172-426928259.png",
+      "shippingPrice": 7,
+      "minQty": 1,
+      "maxQty": 24,
+      "variant": null,
+      "color": null,
+      "size": null,
+      "attributes": null
+    }
+  ]
+}

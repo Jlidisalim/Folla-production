@@ -1,0 +1,23 @@
+# Dependencies (installed during build)
+node_modules/
+
+# Local development
+.env
+.env.local
+*.log
+
+# Build artifacts (built during Railway build)
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+coverage/
+*.test.ts
+__tests__/

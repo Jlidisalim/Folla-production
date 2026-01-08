@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files (NEVER commit secrets)
+.env
+.env.*
+!.env.example
+
+# Local development files
+*.local
+
+# Editor directories
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.sw?
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Database files
+*.sqlite
+*.db
+
+# Temp files
+temp_*.txt
+*.tmp
+
+# Uploads (if large/generated)
+# uploads/
+
+# Test coverage
+coverage/
