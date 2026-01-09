@@ -49,6 +49,7 @@ git push -u origin main
 
 ## Step 2: Create PostgreSQL Database
 
+
 1. Go to [dashboard.render.com](https://dashboard.render.com)
 2. Click **"New +"** → **"PostgreSQL"**
 3. Configure:
