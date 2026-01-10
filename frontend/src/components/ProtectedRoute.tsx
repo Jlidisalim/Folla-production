@@ -1,8 +1,8 @@
 // src/components/ProtectedRoute.tsx
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
-import api from "@/lib/api";
+import { useUser, useAuth } from "@clerk/clerk-react";
+import { createAuthenticatedApi } from "@/lib/api";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -23,6 +23,7 @@ interface ProtectedRouteProps {
  */
 const ProtectedRoute = ({ children, adminOnly, allowedRoles }: ProtectedRouteProps) => {
   const { isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const [employeeRole, setEmployeeRole] = useState<string | null>(null);
   const [isActive, setIsActive] = useState<boolean>(true);
   const [roleLoading, setRoleLoading] = useState(true);
@@ -39,7 +40,13 @@ const ProtectedRoute = ({ children, adminOnly, allowedRoles }: ProtectedRoutePro
     let mounted = true;
     (async () => {
       try {
-        const res = await api.get("/api/me/role", { withCredentials: true });
+        const token = await getToken();
+        if (!token) {
+          if (mounted) setRoleLoading(false);
+          return;
+        }
+        const authApi = createAuthenticatedApi(token);
+        const res = await authApi.get("/api/me/role");
         if (!mounted) return;
         setEmployeeRole(res.data?.role || null);
         setIsActive(res.data?.isActive !== false);
@@ -53,7 +60,7 @@ const ProtectedRoute = ({ children, adminOnly, allowedRoles }: ProtectedRoutePro
       }
     })();
     return () => { mounted = false; };
-  }, [isSignedIn, isLoaded]);
+  }, [isSignedIn, isLoaded, getToken]);
 
   // Still loading Clerk data
   if (!isLoaded) {

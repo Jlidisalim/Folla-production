@@ -32,8 +32,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import NotificationBell from "@/components/NotificationBell";
-import { useClerk, useUser } from "@clerk/clerk-react";
-import api from "@/lib/api";
+import { useClerk, useUser, useAuth } from "@clerk/clerk-react";
+import api, { createAuthenticatedApi } from "@/lib/api";
 
 type SearchResponse = {
   products: Array<{
@@ -106,6 +106,7 @@ const AdminLayout: React.FC = () => {
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const { isSignedIn } = useUser();
+  const { getToken } = useAuth();
   const clerk = useClerk();
 
   // Preload all admin page chunks on mount for instant navigation
@@ -117,7 +118,10 @@ const AdminLayout: React.FC = () => {
   const { data: roleData } = useQuery({
     queryKey: ["employeeRole"],
     queryFn: async () => {
-      const res = await api.get("/api/me/role", { withCredentials: true });
+      const token = await getToken();
+      if (!token) return null;
+      const authApi = createAuthenticatedApi(token);
+      const res = await authApi.get("/api/me/role");
       return res.data;
     },
     enabled: isSignedIn,

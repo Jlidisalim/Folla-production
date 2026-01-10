@@ -6,8 +6,8 @@
  */
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
-import api from "@/lib/api";
+import { useUser, useAuth } from "@clerk/clerk-react";
+import { createAuthenticatedApi } from "@/lib/api";
 
 interface RoleRouteProps {
   children: React.ReactNode;
@@ -32,22 +32,29 @@ interface RoleRouteProps {
  */
 const RoleRoute = ({ children, allowedRoles, redirectTo = "/admin" }: RoleRouteProps) => {
   const { isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const [employeeRole, setEmployeeRole] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
 
   // Fetch employee role from database
   useEffect(() => {
     if (!isLoaded) return;
-    
+
     if (!isSignedIn) {
       setRoleLoading(false);
       return;
     }
-    
+
     let mounted = true;
     (async () => {
       try {
-        const res = await api.get("/api/me/role", { withCredentials: true });
+        const token = await getToken();
+        if (!token) {
+          if (mounted) setRoleLoading(false);
+          return;
+        }
+        const authApi = createAuthenticatedApi(token);
+        const res = await authApi.get("/api/me/role");
         if (!mounted) return;
         if (res.data?.role && res.data?.isActive !== false) {
           setEmployeeRole(res.data.role);
@@ -63,7 +70,7 @@ const RoleRoute = ({ children, allowedRoles, redirectTo = "/admin" }: RoleRouteP
       }
     })();
     return () => { mounted = false; };
-  }, [isSignedIn, isLoaded]);
+  }, [isSignedIn, isLoaded, getToken]);
 
   // Still loading
   if (!isLoaded || roleLoading) {
