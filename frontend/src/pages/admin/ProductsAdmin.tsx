@@ -4,11 +4,13 @@
 import {
   useEffect,
   useState,
+  useCallback,
   type ChangeEventHandler,
   type ReactNode,
 } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import api from "@/lib/api";
+import api, { createAuthenticatedApi } from "@/lib/api";
+import { useAuth } from "@clerk/clerk-react";
 import {
   Eye,
   EyeOff,
@@ -100,6 +102,7 @@ export default function ProductsAdmin() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const { getToken } = useAuth();
 
   // Fermer le dropdown "Type de vente" au clic extérieur
   useEffect(() => {
@@ -201,26 +204,32 @@ export default function ProductsAdmin() {
     return `${apiBase}/products/uploads/${s.replace(/^\/+/, "")}`;
   }
 
-  const fetchLowStock = async () => {
+  const fetchLowStock = useCallback(async () => {
     try {
-      const res = await api.get("/products/low-stock");
+      const token = await getToken();
+      const authApi = token ? createAuthenticatedApi(token) : api;
+      const res = await authApi.get("/products/low-stock");
       const data: LowStockAlert[] = Array.isArray(res.data) ? res.data : [];
       setLowStockAlerts(data);
     } catch (err) {
       console.warn("Échec du chargement des alertes stock", err);
     }
-  };
+  }, [getToken]);
 
   // Charger les produits
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const query = new URLSearchParams();
       if (filters.title) query.append("title", filters.title);
       if (filters.category) query.append("category", filters.category);
       if (filters.subCategory) query.append("subCategory", filters.subCategory);
 
+      // Get authenticated API
+      const token = await getToken();
+      const authApi = token ? createAuthenticatedApi(token) : api;
+
       // Admin requests bypass visibility filter
-      const res = await api.get(`/products?${query.toString()}`, {
+      const res = await authApi.get(`/products?${query.toString()}`, {
         headers: { "x-admin-request": "true" }
       });
       const data: Product[] = Array.isArray(res.data) ? res.data : [];
@@ -248,16 +257,15 @@ export default function ProductsAdmin() {
     } catch (err) {
       console.error("Échec du chargement des produits", err);
     }
-  };
+  }, [filters, getToken, fetchLowStock]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
+  }, [load]);
 
   useEffect(() => {
     fetchLowStock();
-  }, []);
+  }, [fetchLowStock]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -272,7 +280,7 @@ export default function ProductsAdmin() {
   );
 
   // Mettre à jour un champ produit
-  const updateProduct = async (id: number, updates: Partial<Product>) => {
+  const updateProduct = useCallback(async (id: number, updates: Partial<Product>) => {
     const index = products.findIndex((p) => p.id === id);
     if (index === -1) return;
 
@@ -282,13 +290,15 @@ export default function ProductsAdmin() {
     setProducts(newProducts);
 
     try {
-      await api.patch(`/products/${id}`, updates);
+      const token = await getToken();
+      const authApi = token ? createAuthenticatedApi(token) : api;
+      await authApi.patch(`/products/${id}`, updates);
       fetchLowStock();
     } catch (err) {
       console.error("Échec de la mise à jour du produit", err);
       setProducts(oldProducts);
     }
-  };
+  }, [products, getToken, fetchLowStock]);
 
   // Édition de quantité — met à jour inStock automatiquement
   const handleQuantityEdit = (id: number, qty: number) => {
@@ -319,11 +329,13 @@ export default function ProductsAdmin() {
   };
 
   // Supprimer avec confirmation
-  const deleteProduct = async () => {
+  const deleteProduct = useCallback(async () => {
     if (!productToDelete) return;
     try {
       setDeleteLoading(true);
-      await api.delete(`/products/${productToDelete.id}`);
+      const token = await getToken();
+      const authApi = token ? createAuthenticatedApi(token) : api;
+      await authApi.delete(`/products/${productToDelete.id}`);
       await load();
     } catch (err) {
       console.error("Échec de la suppression du produit", err);
@@ -332,7 +344,7 @@ export default function ProductsAdmin() {
       setDeleteDialogOpen(false);
       setProductToDelete(null);
     }
-  };
+  }, [productToDelete, getToken, load]);
 
   const askDeleteProduct = (product: Product) => {
     setProductToDelete(product);

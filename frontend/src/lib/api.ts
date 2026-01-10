@@ -175,6 +175,28 @@ export function useAuthenticatedApi() {
   );
 
   /**
+   * Makes an authenticated PUT request.
+   */
+  const authPut = useCallback(
+    async <T = unknown>(url: string, data?: unknown): Promise<{ data: T | null; error: string | null; status: number }> => {
+      const api = await authApi();
+      if (!api) {
+        return { data: null, error: "Not authenticated", status: 401 };
+      }
+
+      try {
+        const res = await api.put<T>(url, data);
+        return { data: res.data, error: null, status: res.status };
+      } catch (err: any) {
+        const status = err.response?.status || 500;
+        const message = err.response?.data?.message || err.message || "Request failed";
+        return { data: null, error: message, status };
+      }
+    },
+    [authApi]
+  );
+
+  /**
    * Makes an authenticated DELETE request.
    */
   const authDelete = useCallback(
@@ -200,6 +222,7 @@ export function useAuthenticatedApi() {
     authApi,
     authGet,
     authPost,
+    authPut,
     authPatch,
     authDelete,
     isLoading: !isLoaded,

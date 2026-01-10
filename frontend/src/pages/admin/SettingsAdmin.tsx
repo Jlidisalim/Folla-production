@@ -9,7 +9,8 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Save, Settings, Truck, AlertCircle, CheckCircle2, MapPin, Plus, Pencil, Trash2, X } from "lucide-react";
-import api from "@/lib/api";
+import api, { createAuthenticatedApi } from "@/lib/api";
+import { useAuth } from "@clerk/clerk-react";
 
 interface ShopSettings {
     freeShippingThresholdDt: number;
@@ -28,6 +29,7 @@ interface StoreLocation {
 
 const SettingsAdmin = () => {
     const queryClient = useQueryClient();
+    const { getToken } = useAuth();
 
     // Form state for shipping settings
     const [threshold, setThreshold] = useState<string>("");
@@ -47,7 +49,9 @@ const SettingsAdmin = () => {
     const { data: settings, isLoading } = useQuery<ShopSettings>({
         queryKey: ["shopSettings"],
         queryFn: async () => {
-            const res = await api.get("/api/settings");
+            const token = await getToken();
+            const authApi = token ? createAuthenticatedApi(token) : api;
+            const res = await authApi.get("/api/settings");
             return res.data;
         },
     });
@@ -56,7 +60,9 @@ const SettingsAdmin = () => {
     const { data: locations = [], isLoading: locationsLoading } = useQuery<StoreLocation[]>({
         queryKey: ["adminStoreLocations"],
         queryFn: async () => {
-            const res = await api.get("/api/settings/admin/store-locations");
+            const token = await getToken();
+            const authApi = token ? createAuthenticatedApi(token) : api;
+            const res = await authApi.get("/api/settings/admin/store-locations");
             return res.data;
         },
     });
@@ -72,7 +78,9 @@ const SettingsAdmin = () => {
     // Save shipping settings mutation
     const saveMutation = useMutation({
         mutationFn: async (data: { freeShippingThresholdDt: number; defaultShippingFeeDt: number }) => {
-            const res = await api.put("/api/settings/admin", data);
+            const token = await getToken();
+            const authApi = token ? createAuthenticatedApi(token) : api;
+            const res = await authApi.put("/api/settings/admin", data);
             return res.data;
         },
         onSuccess: () => {
@@ -91,7 +99,9 @@ const SettingsAdmin = () => {
     // Create store location mutation
     const createLocationMutation = useMutation({
         mutationFn: async (data: { name: string; address: string; phone: string; isActive: boolean }) => {
-            const res = await api.post("/api/settings/admin/store-locations", data);
+            const token = await getToken();
+            const authApi = token ? createAuthenticatedApi(token) : api;
+            const res = await authApi.post("/api/settings/admin/store-locations", data);
             return res.data;
         },
         onSuccess: () => {
@@ -110,7 +120,9 @@ const SettingsAdmin = () => {
     // Update store location mutation
     const updateLocationMutation = useMutation({
         mutationFn: async ({ id, ...data }: { id: number; name: string; address: string; phone: string; isActive: boolean }) => {
-            const res = await api.put(`/api/settings/admin/store-locations/${id}`, data);
+            const token = await getToken();
+            const authApi = token ? createAuthenticatedApi(token) : api;
+            const res = await authApi.put(`/api/settings/admin/store-locations/${id}`, data);
             return res.data;
         },
         onSuccess: () => {
@@ -129,7 +141,9 @@ const SettingsAdmin = () => {
     // Delete store location mutation
     const deleteLocationMutation = useMutation({
         mutationFn: async (id: number) => {
-            const res = await api.delete(`/api/settings/admin/store-locations/${id}`);
+            const token = await getToken();
+            const authApi = token ? createAuthenticatedApi(token) : api;
+            const res = await authApi.delete(`/api/settings/admin/store-locations/${id}`);
             return res.data;
         },
         onSuccess: () => {

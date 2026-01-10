@@ -1,6 +1,7 @@
-import { useEffect, useState, useMemo, type ReactNode } from "react";
+import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import api from "@/lib/api";
+import api, { createAuthenticatedApi } from "@/lib/api";
+import { useAuth } from "@clerk/clerk-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,22 +40,25 @@ export default function ClientsAdmin() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const location = useLocation();
+  const { getToken } = useAuth();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
-      const res = await api.get("/clients");
+      const token = await getToken();
+      const authApi = token ? createAuthenticatedApi(token) : api;
+      const res = await authApi.get("/clients");
       setAllClients(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Failed to load clients", err);
     }
-  };
+  }, [getToken]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -65,11 +69,13 @@ export default function ClientsAdmin() {
     }
   }, [location.search]);
 
-  const deleteClient = async () => {
+  const deleteClient = useCallback(async () => {
     if (!clientToDelete) return;
     try {
       setDeleteLoading(true);
-      await api.delete(`/clients/${clientToDelete.id}`);
+      const token = await getToken();
+      const authApi = token ? createAuthenticatedApi(token) : api;
+      await authApi.delete(`/clients/${clientToDelete.id}`);
       await load();
     } catch (err) {
       console.error("Failed to delete client", err);
@@ -78,7 +84,7 @@ export default function ClientsAdmin() {
       setDeleteDialogOpen(false);
       setClientToDelete(null);
     }
-  };
+  }, [clientToDelete, getToken, load]);
 
   const askDeleteClient = (client: Client) => {
     setClientToDelete(client);
@@ -88,7 +94,9 @@ export default function ClientsAdmin() {
   const togglePurchaseUnit = async (id: number, currentUnit: string) => {
     const newUnit = currentUnit === "piece" ? "quantity" : "piece";
     try {
-      await api.patch(`/clients/${id}`, { purchaseUnit: newUnit });
+      const token = await getToken();
+      const authApi = token ? createAuthenticatedApi(token) : api;
+      await authApi.patch(`/clients/${id}`, { purchaseUnit: newUnit });
       setAllClients((prev) =>
         prev.map((client) =>
           client.id === id ? { ...client, purchaseUnit: newUnit } : client
@@ -203,8 +211,7 @@ export default function ClientsAdmin() {
     const rows = allClients
       .map(
         (client) =>
-          `${client.id},${client.name || ""},${client.email || ""},${
-            client.phone || ""
+          `${client.id},${client.name || ""},${client.email || ""},${client.phone || ""
           },${client.purchaseUnit || ""},${client.clerkId || ""}`
       )
       .join("\n");
@@ -309,11 +316,10 @@ export default function ClientsAdmin() {
                     onClick={() =>
                       togglePurchaseUnit(client.id, client.purchaseUnit ?? "piece")
                     }
-                    className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      (client.purchaseUnit ?? "piece") === "piece"
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${(client.purchaseUnit ?? "piece") === "piece"
                         ? "bg-orange-100 text-orange-800"
                         : "bg-green-100 text-green-800"
-                    }`}
+                      }`}
                   >
                     {(client.purchaseUnit ?? "piece") === "piece"
                       ? "Unite"
@@ -389,9 +395,8 @@ export default function ClientsAdmin() {
           if (!open && !deleteLoading) setClientToDelete(null);
         }}
         title="Supprimer ce client ?"
-        description={`Cette action retirera ${
-          clientToDelete?.name ?? "ce client"
-        } de la liste des clients.`}
+        description={`Cette action retirera ${clientToDelete?.name ?? "ce client"
+          } de la liste des clients.`}
         confirmLabel="Supprimer"
         cancelLabel="Annuler"
         loading={deleteLoading}
@@ -421,9 +426,8 @@ function StatCard({
       </div>
       <h2 className="text-3xl font-bold">{value}</h2>
       <div
-        className={`flex items-center text-sm ${
-          positive ? "text-green-500" : "text-red-500"
-        }`}
+        className={`flex items-center text-sm ${positive ? "text-green-500" : "text-red-500"
+          }`}
       >
         {positive ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
         {Math.abs(percent)}% vs periode precedente
