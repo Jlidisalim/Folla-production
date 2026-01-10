@@ -2085,7 +2085,7 @@ export default function AddProduct() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 mt-8">
         <div>
           <h2 className="text-xl font-semibold mb-4">Tarification & Stock</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Prix par pièce
@@ -2121,13 +2121,13 @@ export default function AddProduct() {
             </div>
 
             {pricingError && (
-              <p className="md:col-span-2 text-xs text-red-600">
+              <p className="sm:col-span-2 text-xs text-red-600">
                 Ajoutez au moins un prix (pièce ou quantité) avant
                 d&apos;enregistrer.
               </p>
             )}
             {disableBasePricing && (
-              <p className="md:col-span-2 text-xs text-gray-500">
+              <p className="sm:col-span-2 text-xs text-gray-500">
                 Les prix principaux sont désactivés car les combinaisons
                 définissent les prix.
               </p>
@@ -2219,11 +2219,11 @@ export default function AddProduct() {
             </div>
 
             {/* Minimum Order Quantities */}
-            <div className="col-span-2 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="sm:col-span-2 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h4 className="text-sm font-semibold text-blue-800 mb-3">
                 Quantités minimum de commande
               </h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Min. détail (pièce)
