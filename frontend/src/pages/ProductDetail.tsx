@@ -1402,18 +1402,18 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleAddToCart}
                 disabled={!canAdd}
-                className="flex-1 min-w-[140px] border border-black px-5 py-3 rounded-md font-medium hover:bg-gray-50 disabled:opacity-50 whitespace-nowrap"
+                className="flex-1 border border-gray-300 bg-white text-gray-900 px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
               >
                 Ajouter au panier
               </button>
               <button
                 onClick={handleBuyNow}
                 disabled={!canAdd}
-                className="flex-1 min-w-[140px] bg-black text-white px-5 py-3 rounded-md font-medium hover:bg-gray-800 disabled:opacity-50 whitespace-nowrap"
+                className="flex-1 bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
               >
                 Acheter maintenant
               </button>
@@ -1428,14 +1428,14 @@ export default function ProductDetail() {
                     image: mainImage || galleryImages[0],
                   });
                 }}
-                className={`p-3 border rounded-md transition-colors ${isInWishlist(String(product.id))
-                  ? "bg-black text-white border-black"
-                  : "border-gray-300 hover:border-black"
+                className={`p-2.5 rounded-lg transition-all ${isInWishlist(String(product.id))
+                  ? "bg-gray-900 text-white"
+                  : "bg-white border border-gray-300 hover:border-gray-400 text-gray-600 hover:text-gray-900"
                   }`}
                 aria-label={isInWishlist(String(product.id)) ? "Retirer des favoris" : "Ajouter aux favoris"}
               >
                 <Heart
-                  className={`w-5 h-5 ${isInWishlist(String(product.id)) ? "fill-white text-white" : "text-gray-600"
+                  className={`w-5 h-5 ${isInWishlist(String(product.id)) ? "fill-white text-white" : ""
                     }`}
                 />
               </button>
