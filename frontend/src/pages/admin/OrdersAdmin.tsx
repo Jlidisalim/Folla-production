@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package, Truck, RotateCcw, AlertTriangle, LogIn, XCircle, Clock } from "lucide-react";
+import { Package, Truck, RotateCcw, AlertTriangle, LogIn, XCircle, Clock, MapPin } from "lucide-react";
 import { SignInButton, useUser } from "@clerk/clerk-react";
 import { OrdersAdminSkeleton } from "@/components/skeletons";
 import DotPagination from "@/components/DotPagination";
@@ -36,6 +36,7 @@ type Order = {
   total: number;
   status: string;
   address?: string | null;
+  region?: string | null;
   name?: string | null;
   email?: string | null;
   phone?: string | null;
@@ -299,45 +300,48 @@ export default function OrdersAdmin() {
     return status !== "delivered" && status !== "completed" && status !== "canceled" && status !== "cancelled";
   };
 
-  const statusCounts = {
-    all: orders.filter((o) => o.status !== "canceled" && o.status !== "cancelled").length,
-    completed: orders.filter((o) => o.status === "completed").length,
-    processed: orders.filter((o) => o.status === "processed").length,
-    delivered: orders.filter((o) => o.status === "delivered").length,
-    returned: orders.filter((o) => o.status === "returned").length,
-    canceled: orders.filter((o) => o.status === "canceled" || o.status === "cancelled").length,
-    pending: orders.filter((o) => o.status === "pending").length,
-  };
-
   const normalizedSearch = search.trim().toLowerCase();
 
-  const filteredOrders = orders
-    .filter((o) => {
-      if (!normalizedSearch) return true;
-      const matchesId =
-        formatOrderCode(o.id).toLowerCase().includes(normalizedSearch) ||
-        o.id.toString().includes(normalizedSearch);
-      const customerFields = [o.name, o.email, o.phone, o.address].filter(
-        Boolean
-      ) as string[];
-      const matchesCustomer = customerFields.some((field) =>
-        field.toLowerCase().includes(normalizedSearch)
-      );
-      const matchesItems =
-        o.items?.some((it) =>
-          [it.product?.title, it.product?.name]
-            .filter((field): field is string => Boolean(field))
-            .some((field) => field.toLowerCase().includes(normalizedSearch))
-        ) ?? false;
-      return matchesId || matchesCustomer || matchesItems;
-    })
-    .filter((o) => {
-      // "all" filter excludes cancelled orders - they are only visible under "Annulées" tab
-      if (activeFilter === "all") {
-        return o.status !== "canceled" && o.status !== "cancelled";
-      }
-      return o.status === activeFilter;
-    });
+  // Apply search filter first (shared between counts and table)
+  const searchFilteredOrders = orders.filter((o) => {
+    if (!normalizedSearch) return true;
+    const matchesId =
+      formatOrderCode(o.id).toLowerCase().includes(normalizedSearch) ||
+      o.id.toString().includes(normalizedSearch);
+    const customerFields = [o.name, o.email, o.phone, o.address].filter(
+      Boolean
+    ) as string[];
+    const matchesCustomer = customerFields.some((field) =>
+      field.toLowerCase().includes(normalizedSearch)
+    );
+    const matchesItems =
+      o.items?.some((it) =>
+        [it.product?.title, it.product?.name]
+          .filter((field): field is string => Boolean(field))
+          .some((field) => field.toLowerCase().includes(normalizedSearch))
+      ) ?? false;
+    return matchesId || matchesCustomer || matchesItems;
+  });
+
+  // Compute status counts from search-filtered orders (so counts match the table)
+  const statusCounts = {
+    all: searchFilteredOrders.filter((o) => o.status !== "canceled" && o.status !== "cancelled").length,
+    completed: searchFilteredOrders.filter((o) => o.status === "completed").length,
+    processed: searchFilteredOrders.filter((o) => o.status === "processed").length,
+    delivered: searchFilteredOrders.filter((o) => o.status === "delivered").length,
+    returned: searchFilteredOrders.filter((o) => o.status === "returned").length,
+    canceled: searchFilteredOrders.filter((o) => o.status === "canceled" || o.status === "cancelled").length,
+    pending: searchFilteredOrders.filter((o) => o.status === "pending").length,
+  };
+
+  // Apply status filter to get final table data
+  const filteredOrders = searchFilteredOrders.filter((o) => {
+    // "all" filter excludes cancelled orders - they are only visible under "Annulées" tab
+    if (activeFilter === "all") {
+      return o.status !== "canceled" && o.status !== "cancelled";
+    }
+    return o.status === activeFilter;
+  });
 
   // Reset page when filter/search changes
   useEffect(() => {
@@ -743,6 +747,30 @@ export default function OrdersAdmin() {
               <div className="text-gray-500">Téléphone</div>
               <div>{selectedOrder.phone || "—"}</div>
             </div>
+          </div>
+
+          {/* Adresse de livraison */}
+          <div className="mb-4">
+            <h3 className="font-semibold mb-2">Adresse de livraison</h3>
+            {selectedOrder.address || selectedOrder.region ? (
+              <div className="text-sm space-y-2 bg-gray-50 p-3 rounded-lg">
+                {selectedOrder.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <span>{selectedOrder.address}</span>
+                  </div>
+                )}
+                {selectedOrder.region && (
+                  <div className="text-gray-600">
+                    <span className="font-medium">Gouvernorat:</span> {selectedOrder.region}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400 italic bg-gray-50 p-3 rounded-lg">
+                Adresse non disponible
+              </div>
+            )}
           </div>
 
           <div className="mb-4">

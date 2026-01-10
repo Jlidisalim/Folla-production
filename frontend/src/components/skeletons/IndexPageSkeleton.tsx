@@ -56,9 +56,9 @@ export function IndexPageSkeleton() {
             {/* Subtitle */}
             <Skeleton className="h-5 w-80 mx-auto mt-3" />
           </div>
-          
-          {/* Product grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 justify-items-center">
+
+          {/* Product grid - 2 columns on mobile */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-10 justify-items-center">
             {Array.from({ length: 4 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
@@ -78,8 +78,8 @@ export function IndexPageSkeleton() {
             <Skeleton className="h-1 w-16 mx-auto rounded-full" />
             <Skeleton className="h-5 w-72 mx-auto mt-3" />
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 justify-items-center">
+
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-10 justify-items-center">
             {Array.from({ length: 4 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}

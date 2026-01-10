@@ -25,10 +25,10 @@ export function ProductListingSkeleton() {
         </div>
       </div>
 
-      {/* Product grid skeleton */}
+      {/* Product grid skeleton - 2 columns on mobile */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex justify-center">
-          <div className="grid w-full grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center xl:gap-12">
+          <div className="grid w-full grid-cols-2 gap-4 sm:grid-cols-2 sm:gap-10 lg:grid-cols-3 xl:grid-cols-4 justify-items-center xl:gap-12">
             {Array.from({ length: 8 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}

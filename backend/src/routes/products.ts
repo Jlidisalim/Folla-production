@@ -786,6 +786,46 @@ router.get(
 );
 
 /* -----------------------------------------------------------
+ * 📂 GET /products/categories — distinct categories for footer/navigation
+ * IMPORTANT: Must be BEFORE /:id to prevent route conflict
+ * ----------------------------------------------------------*/
+router.get("/categories", async (_req, res) => {
+  try {
+    // Get distinct categories from published products
+    const now = new Date();
+    const products = await prisma.product.findMany({
+      where: {
+        visible: true,
+        OR: [
+          { publishAt: null },
+          { publishAt: { lte: now } }
+        ]
+      },
+      select: { category: true },
+      distinct: ["category"],
+    });
+
+    // Extract unique categories, filter empty, and sort alphabetically
+    const categories = products
+      .map((p) => p.category)
+      .filter((cat): cat is string => !!cat && cat.trim().length > 0)
+      .map((cat) => cat.trim())
+      .sort((a, b) => a.localeCompare(b, "fr"));
+
+    // Map to objects with slug and label for frontend convenience
+    const result = categories.map((cat) => ({
+      slug: cat.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
+      label: cat,
+    }));
+
+    res.json(result);
+  } catch (err: any) {
+    console.error("categories endpoint error", err);
+    res.status(500).json({ error: err.message ?? "Categories error" });
+  }
+});
+
+/* -----------------------------------------------------------
  * 🧾 GET /products/:id — single product by ID
  * ----------------------------------------------------------*/
 router.get("/:id", async (req, res) => {

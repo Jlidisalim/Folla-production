@@ -14,6 +14,7 @@ import { NotificationProvider } from "@/components/NotificationProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import RoleRoute from "@/components/RoleRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ScrollToTop from "@/components/ScrollToTop";
 
 // ============================================================================
 // PERFORMANCE: Route-based Code Splitting with React.lazy()
@@ -110,6 +111,7 @@ const App = () => {
 
             <NotificationProvider>
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <ScrollToTop />
                 <WishlistProvider>
                   <CartProvider>
                     <SyncClerkEmail />

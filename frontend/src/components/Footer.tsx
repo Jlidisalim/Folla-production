@@ -13,6 +13,11 @@ interface StoreLocation {
   sortOrder: number;
 }
 
+interface Category {
+  slug: string;
+  label: string;
+}
+
 const Footer = () => {
   // Fetch store locations from API
   const { data: storeLocations = [] } = useQuery<StoreLocation[]>({
@@ -22,6 +27,16 @@ const Footer = () => {
       return res.data;
     },
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  // Fetch categories dynamically from API
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ["footerCategories"],
+    queryFn: async () => {
+      const res = await api.get("/products/categories");
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
   });
 
   return (
@@ -44,22 +59,29 @@ const Footer = () => {
             </p>
           </div>
 
-          {/* Boutique Links */}
+          {/* Boutique Links - Dynamic */}
           <div>
             <h3 className="font-semibold mb-4">Nos collections</h3>
             <div className="space-y-2 text-sm">
-              <Link to="/category/decoration" className="block text-muted-foreground hover:text-amber-600 transition-colors">
-                Décoration
-              </Link>
-              <Link to="/category/sacs" className="block text-muted-foreground hover:text-amber-600 transition-colors">
-                Sacs & accessoires
-              </Link>
-              <Link to="/category/art-de-la-table" className="block text-muted-foreground hover:text-amber-600 transition-colors">
-                Art de la table
-              </Link>
-              <Link to="/category/nouveautes" className="block text-muted-foreground hover:text-amber-600 transition-colors">
-                Nouveautés
-              </Link>
+              {categories.length > 0 ? (
+                categories.map((cat) => (
+                  <Link
+                    key={cat.slug}
+                    to={`/category/${cat.slug}`}
+                    className="block text-muted-foreground hover:text-amber-600 transition-colors"
+                  >
+                    {cat.label}
+                  </Link>
+                ))
+              ) : (
+                // Fallback skeleton while loading
+                <>
+                  <div className="h-4 w-24 bg-muted-foreground/20 rounded animate-pulse" />
+                  <div className="h-4 w-28 bg-muted-foreground/20 rounded animate-pulse" />
+                  <div className="h-4 w-20 bg-muted-foreground/20 rounded animate-pulse" />
+                </>
+              )}
+              {/* Static link for Ventes Flash */}
               <Link to="/vente-flash" className="block text-muted-foreground hover:text-amber-600 transition-colors">
                 Ventes Flash
               </Link>

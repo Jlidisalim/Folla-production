@@ -6,7 +6,8 @@
  * - Calendar/List view toggle
  * - Assignee filter dropdown
  * - Category filter
- * - Right sidebar showing selected date's tasks
+ * - Right sidebar showing selected date's tasks (desktop) or drawer (mobile)
+ * - Fully responsive with mobile drawer
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -18,6 +19,8 @@ import {
     ChevronRight,
     RefreshCcw,
     User,
+    X,
+    ClipboardList,
 } from "lucide-react";
 import { useAuthenticatedApi } from "@/lib/api";
 import {
@@ -53,6 +56,9 @@ export default function TaskCalendarSection({ employees }: TaskCalendarSectionPr
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
 
+    // Mobile drawer state
+    const [isTasksOpen, setIsTasksOpen] = useState(false);
+
     // User info
     const [isAdmin, setIsAdmin] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<number>(0);
@@ -69,6 +75,18 @@ export default function TaskCalendarSection({ employees }: TaskCalendarSectionPr
     // Filters
     const [filterAssignee, setFilterAssignee] = useState<string>("all");
     const [filterCategory, setFilterCategory] = useState<string>("all");
+
+    // Prevent body scroll when drawer is open
+    useEffect(() => {
+        if (isTasksOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [isTasksOpen]);
 
     // Fetch user role
     useEffect(() => {
@@ -232,83 +250,186 @@ export default function TaskCalendarSection({ employees }: TaskCalendarSectionPr
         return date.toDateString() === selectedDate.toDateString();
     };
 
+    // Tasks Panel Content (shared between drawer and desktop sidebar)
+    const TasksPanelContent = () => (
+        <>
+            <div className="flex items-center justify-between mb-4">
+                <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                        {formatSelectedDate(selectedDate)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                        {selectedDateEvents.length} tâche(s)
+                    </p>
+                </div>
+                {/* Close button - only on mobile */}
+                <button
+                    onClick={() => setIsTasksOpen(false)}
+                    className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Fermer"
+                >
+                    <X className="h-5 w-5" />
+                </button>
+            </div>
+
+            <div className="space-y-3 max-h-[calc(100vh-200px)] md:max-h-[400px] overflow-y-auto">
+                {selectedDateEvents.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-8">
+                        Pas de tâches
+                    </p>
+                ) : (
+                    selectedDateEvents.map((event) => {
+                        const typeColors = TASK_TYPE_COLORS[event.extendedProps.type];
+                        const isAssignedToMe = event.extendedProps.assignedToId === currentUserId;
+                        const canComplete = isAssignedToMe && event.extendedProps.status !== "COMPLETED";
+
+                        return (
+                            <div
+                                key={event.id}
+                                className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm"
+                            >
+                                <div className="flex items-center gap-2 mb-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={event.extendedProps.status === "COMPLETED"}
+                                        disabled={!canComplete}
+                                        onChange={() => canComplete && handleComplete(event)}
+                                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span
+                                        className={`px-2 py-0.5 rounded text-[10px] font-semibold ${typeColors.bg} ${typeColors.text}`}
+                                    >
+                                        {TASK_TYPE_LABELS[event.extendedProps.type]}
+                                    </span>
+                                </div>
+                                <p
+                                    onClick={() => handleView(event)}
+                                    className="text-sm font-medium text-gray-900 mb-1 cursor-pointer hover:text-blue-600"
+                                >
+                                    {event.title}
+                                </p>
+                                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-[9px] font-bold">
+                                        {event.extendedProps.assignedToName?.charAt(0) || "?"}
+                                    </div>
+                                    <span className="truncate">{event.extendedProps.assignedToName}</span>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+
+            {/* Add task for selected date */}
+            {isAdmin && (
+                <button
+                    onClick={() => {
+                        setIsTasksOpen(false);
+                        setShowAddModal(true);
+                    }}
+                    className="w-full mt-4 flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-blue-600 py-2 border border-dashed rounded-lg hover:border-blue-300 transition-colors"
+                >
+                    Ajouter <Plus className="h-4 w-4" />
+                </button>
+            )}
+        </>
+    );
+
     return (
         <>
             <div className="lg:col-span-3 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 {/* Header */}
-                <div className="px-4 py-3 border-b border-slate-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900">Calendrier & Tâches</h2>
-                        {/* Assignee filter */}
-                        {isAdmin && (
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="text-sm text-gray-500">Assigné à:</span>
-                                <select
-                                    value={filterAssignee}
-                                    onChange={(e) => setFilterAssignee(e.target.value)}
-                                    className="text-sm border-0 bg-transparent font-medium text-gray-700 focus:ring-0 cursor-pointer"
-                                >
-                                    <option value="all">Tous</option>
-                                    {employees.map((emp) => (
-                                        <option key={emp.id} value={emp.id.toString()}>
-                                            {emp.fullName}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-3 flex-wrap">
-                        {/* Month navigation */}
-                        <div className="flex items-center gap-2 bg-slate-100 rounded-lg px-2 py-1">
-                            <button onClick={prevMonth} className="p-1 hover:bg-slate-200 rounded">
-                                <ChevronLeft className="h-4 w-4" />
-                            </button>
-                            <span className="text-sm font-semibold min-w-[120px] text-center">
-                                {MONTHS_FR[currentDate.getMonth()]} {currentDate.getFullYear()}
-                            </span>
-                            <button onClick={nextMonth} className="p-1 hover:bg-slate-200 rounded">
-                                <ChevronRight className="h-4 w-4" />
-                            </button>
+                <div className="px-3 md:px-4 py-3 border-b border-slate-100">
+                    {/* Top row: Title + Mobile buttons */}
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 className="text-lg md:text-xl font-bold text-gray-900">Calendrier & Tâches</h2>
+                            {/* Assignee filter - desktop */}
+                            {isAdmin && (
+                                <div className="hidden sm:flex items-center gap-2 mt-1">
+                                    <span className="text-sm text-gray-500">Assigné à:</span>
+                                    <select
+                                        value={filterAssignee}
+                                        onChange={(e) => setFilterAssignee(e.target.value)}
+                                        className="text-sm border-0 bg-transparent font-medium text-gray-700 focus:ring-0 cursor-pointer"
+                                    >
+                                        <option value="all">Tous</option>
+                                        {employees.map((emp) => (
+                                            <option key={emp.id} value={emp.id.toString()}>
+                                                {emp.fullName}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Add Task button */}
+                        {/* Mobile buttons */}
+                        <div className="flex items-center gap-2 md:hidden">
+                            <button
+                                onClick={() => setIsTasksOpen(true)}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
+                            >
+                                <ClipboardList className="h-4 w-4" />
+                                <span className="hidden xs:inline">Tâches</span>
+                                {selectedDateEvents.length > 0 && (
+                                    <span className="bg-blue-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                        {selectedDateEvents.length}
+                                    </span>
+                                )}
+                            </button>
+                            {isAdmin && (
+                                <button
+                                    onClick={() => setShowAddModal(true)}
+                                    className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    aria-label="Ajouter une tâche"
+                                >
+                                    <Plus className="h-5 w-5" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Desktop Add Task button */}
                         {isAdmin && (
                             <button
                                 onClick={() => setShowAddModal(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
+                                className="hidden md:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
                             >
                                 Add Task <Plus className="h-4 w-4" />
                             </button>
                         )}
                     </div>
-                </div>
 
-                {/* Toolbar */}
-                <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        {/* View toggle */}
-                        <div className="flex bg-slate-100 rounded-lg p-1">
-                            <button
-                                onClick={() => setViewMode("calendar")}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === "calendar"
-                                        ? "bg-white shadow-sm text-blue-600"
-                                        : "text-gray-600 hover:text-gray-900"
-                                    }`}
+                    {/* Mobile assignee filter */}
+                    {isAdmin && (
+                        <div className="flex sm:hidden items-center gap-2 mb-3">
+                            <span className="text-sm text-gray-500">Assigné à:</span>
+                            <select
+                                value={filterAssignee}
+                                onChange={(e) => setFilterAssignee(e.target.value)}
+                                className="text-sm border rounded-lg px-2 py-1 font-medium text-gray-700 focus:ring-2 focus:ring-blue-500 flex-1"
                             >
-                                <CalendarIcon className="h-4 w-4" />
-                                Calendrier
+                                <option value="all">Tous</option>
+                                {employees.map((emp) => (
+                                    <option key={emp.id} value={emp.id.toString()}>
+                                        {emp.fullName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    {/* Month navigation row */}
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1 md:gap-2 bg-slate-100 rounded-lg px-2 py-1">
+                            <button onClick={prevMonth} className="p-1 hover:bg-slate-200 rounded">
+                                <ChevronLeft className="h-4 w-4" />
                             </button>
-                            <button
-                                onClick={() => setViewMode("list")}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === "list"
-                                        ? "bg-white shadow-sm text-blue-600"
-                                        : "text-gray-600 hover:text-gray-900"
-                                    }`}
-                            >
-                                <List className="h-4 w-4" />
-                                Liste
+                            <span className="text-xs md:text-sm font-semibold min-w-[90px] md:min-w-[120px] text-center whitespace-nowrap">
+                                {MONTHS_FR[currentDate.getMonth()]} {currentDate.getFullYear()}
+                            </span>
+                            <button onClick={nextMonth} className="p-1 hover:bg-slate-200 rounded">
+                                <ChevronRight className="h-4 w-4" />
                             </button>
                         </div>
 
@@ -320,14 +441,43 @@ export default function TaskCalendarSection({ employees }: TaskCalendarSectionPr
                             <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                         </button>
                     </div>
+                </div>
+
+                {/* Toolbar */}
+                <div className="px-3 md:px-4 py-2 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        {/* View toggle */}
+                        <div className="flex bg-slate-100 rounded-lg p-1">
+                            <button
+                                onClick={() => setViewMode("calendar")}
+                                className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 rounded-md text-xs md:text-sm font-medium transition-colors ${viewMode === "calendar"
+                                    ? "bg-white shadow-sm text-blue-600"
+                                    : "text-gray-600 hover:text-gray-900"
+                                    }`}
+                            >
+                                <CalendarIcon className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                                <span className="hidden xs:inline">Calendrier</span>
+                            </button>
+                            <button
+                                onClick={() => setViewMode("list")}
+                                className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 rounded-md text-xs md:text-sm font-medium transition-colors ${viewMode === "list"
+                                    ? "bg-white shadow-sm text-blue-600"
+                                    : "text-gray-600 hover:text-gray-900"
+                                    }`}
+                            >
+                                <List className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                                <span className="hidden xs:inline">Liste</span>
+                            </button>
+                        </div>
+                    </div>
 
                     {/* Category filter */}
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">Catégorie:</span>
+                    <div className="flex items-center gap-1 md:gap-2">
+                        <span className="text-xs md:text-sm text-gray-500 hidden sm:inline">Catégorie:</span>
                         <select
                             value={filterCategory}
                             onChange={(e) => setFilterCategory(e.target.value)}
-                            className="text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500"
+                            className="text-xs md:text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="all">Toutes</option>
                             {categories.map((cat) => (
@@ -338,29 +488,29 @@ export default function TaskCalendarSection({ employees }: TaskCalendarSectionPr
                 </div>
 
                 {/* Main content */}
-                <div className="flex">
-                    {/* Calendar Grid */}
-                    <div className={`flex-1 ${viewMode === "list" ? "hidden" : ""}`}>
+                <div className="flex flex-col md:flex-row">
+                    {/* Calendar Grid - Full width on mobile */}
+                    <div className={`flex-1 w-full ${viewMode === "list" ? "hidden" : ""}`}>
                         {loading ? (
-                            <div className="h-[400px] flex items-center justify-center text-gray-500">
-                                Chargement...
+                            <div className="h-[300px] md:h-[400px] flex items-center justify-center text-gray-500">
+                                <RefreshCcw className="h-6 w-6 animate-spin" />
                             </div>
                         ) : (
-                            <div className="p-4">
+                            <div className="p-2 md:p-4">
                                 {/* Weekday headers */}
-                                <div className="grid grid-cols-7 gap-1 mb-2">
+                                <div className="grid grid-cols-7 gap-0.5 md:gap-1 mb-1 md:mb-2">
                                     {DAYS_FR.map((day) => (
                                         <div
                                             key={day}
-                                            className="text-center text-xs font-semibold text-gray-500 py-2"
+                                            className="text-center text-[10px] md:text-xs font-semibold text-gray-500 py-1 md:py-2"
                                         >
-                                            {day.slice(0, 3)}
+                                            {day.slice(0, 2)}
                                         </div>
                                     ))}
                                 </div>
 
                                 {/* Calendar grid */}
-                                <div className="grid grid-cols-7 gap-1">
+                                <div className="grid grid-cols-7 gap-0.5 md:gap-1">
                                     {calendarDays.map((dayObj, idx) => {
                                         const dayEvents = getEventsForDate(dayObj.date);
                                         const selected = isSelected(dayObj.date);
@@ -369,43 +519,70 @@ export default function TaskCalendarSection({ employees }: TaskCalendarSectionPr
                                         return (
                                             <div
                                                 key={idx}
-                                                onClick={() => dayObj.date && setSelectedDate(dayObj.date)}
-                                                className={`min-h-[80px] p-1 border rounded-lg cursor-pointer transition-all ${selected
-                                                        ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
-                                                        : "border-slate-200 hover:border-slate-300"
+                                                onClick={() => {
+                                                    if (dayObj.date) {
+                                                        setSelectedDate(dayObj.date);
+                                                        // On mobile, open drawer when clicking a date with events
+                                                        if (window.innerWidth < 768 && getEventsForDate(dayObj.date).length > 0) {
+                                                            setIsTasksOpen(true);
+                                                        }
+                                                    }
+                                                }}
+                                                className={`min-h-[50px] md:min-h-[80px] p-0.5 md:p-1 border rounded md:rounded-lg cursor-pointer transition-all ${selected
+                                                    ? "border-blue-500 bg-blue-50 ring-1 md:ring-2 ring-blue-200"
+                                                    : "border-slate-200 hover:border-slate-300"
                                                     } ${!dayObj.isCurrentMonth ? "bg-slate-50 opacity-50" : "bg-white"}`}
                                             >
                                                 <div
-                                                    className={`text-sm font-medium mb-1 ${today
-                                                            ? "bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center"
-                                                            : dayObj.isCurrentMonth
-                                                                ? "text-gray-900"
-                                                                : "text-gray-400"
+                                                    className={`text-xs md:text-sm font-medium mb-0.5 md:mb-1 ${today
+                                                        ? "bg-blue-600 text-white w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[10px] md:text-sm"
+                                                        : dayObj.isCurrentMonth
+                                                            ? "text-gray-900"
+                                                            : "text-gray-400"
                                                         }`}
                                                 >
                                                     {dayObj.date?.getDate()}
                                                 </div>
+                                                {/* Events - show dots on mobile, text on desktop */}
                                                 <div className="space-y-0.5">
-                                                    {dayEvents.slice(0, 3).map((event) => {
-                                                        const typeColors = TASK_TYPE_COLORS[event.extendedProps.type];
-                                                        return (
-                                                            <div
-                                                                key={event.id}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleView(event);
-                                                                }}
-                                                                className={`text-[10px] px-1.5 py-0.5 rounded truncate ${typeColors.bg} ${typeColors.text} cursor-pointer hover:opacity-80`}
-                                                            >
-                                                                {event.title}
+                                                    {/* Mobile: show dots */}
+                                                    <div className="flex gap-0.5 flex-wrap md:hidden">
+                                                        {dayEvents.slice(0, 3).map((event) => {
+                                                            const typeColors = TASK_TYPE_COLORS[event.extendedProps.type];
+                                                            return (
+                                                                <div
+                                                                    key={event.id}
+                                                                    className={`w-1.5 h-1.5 rounded-full ${typeColors.bg.replace('bg-', 'bg-').replace('-50', '-500')}`}
+                                                                />
+                                                            );
+                                                        })}
+                                                        {dayEvents.length > 3 && (
+                                                            <span className="text-[8px] text-gray-400">+{dayEvents.length - 3}</span>
+                                                        )}
+                                                    </div>
+                                                    {/* Desktop: show event titles */}
+                                                    <div className="hidden md:block space-y-0.5">
+                                                        {dayEvents.slice(0, 3).map((event) => {
+                                                            const typeColors = TASK_TYPE_COLORS[event.extendedProps.type];
+                                                            return (
+                                                                <div
+                                                                    key={event.id}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleView(event);
+                                                                    }}
+                                                                    className={`text-[10px] px-1.5 py-0.5 rounded truncate ${typeColors.bg} ${typeColors.text} cursor-pointer hover:opacity-80`}
+                                                                >
+                                                                    {event.title}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {dayEvents.length > 3 && (
+                                                            <div className="text-[10px] text-gray-500 px-1">
+                                                                +{dayEvents.length - 3} plus
                                                             </div>
-                                                        );
-                                                    })}
-                                                    {dayEvents.length > 3 && (
-                                                        <div className="text-[10px] text-gray-500 px-1">
-                                                            +{dayEvents.length - 3} plus
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
@@ -417,13 +594,13 @@ export default function TaskCalendarSection({ employees }: TaskCalendarSectionPr
 
                     {/* List view */}
                     {viewMode === "list" && (
-                        <div className="flex-1 p-4">
+                        <div className="flex-1 p-3 md:p-4">
                             {events.length === 0 ? (
-                                <div className="h-[300px] flex items-center justify-center text-gray-500">
+                                <div className="h-[200px] md:h-[300px] flex items-center justify-center text-gray-500">
                                     Aucune tâche ce mois
                                 </div>
                             ) : (
-                                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                                <div className="space-y-2 max-h-[400px] md:max-h-[500px] overflow-y-auto">
                                     {events.map((event) => {
                                         const typeColors = TASK_TYPE_COLORS[event.extendedProps.type];
                                         const eventDate = new Date(event.start);
@@ -431,26 +608,26 @@ export default function TaskCalendarSection({ employees }: TaskCalendarSectionPr
                                             <div
                                                 key={event.id}
                                                 onClick={() => handleView(event)}
-                                                className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
+                                                className="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-xl border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
                                             >
-                                                <div className="text-center min-w-[40px]">
-                                                    <div className="text-lg font-bold text-gray-900">
+                                                <div className="text-center min-w-[32px] md:min-w-[40px]">
+                                                    <div className="text-base md:text-lg font-bold text-gray-900">
                                                         {eventDate.getDate()}
                                                     </div>
-                                                    <div className="text-[10px] uppercase text-gray-500">
+                                                    <div className="text-[9px] md:text-[10px] uppercase text-gray-500">
                                                         {MONTHS_FR[eventDate.getMonth()].slice(0, 3)}
                                                     </div>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${typeColors.bg} ${typeColors.text}`}>
+                                                    <span className={`px-1.5 md:px-2 py-0.5 rounded text-[9px] md:text-[10px] font-medium ${typeColors.bg} ${typeColors.text}`}>
                                                         {TASK_TYPE_LABELS[event.extendedProps.type]}
                                                     </span>
-                                                    <p className="text-sm font-semibold text-gray-900 truncate mt-1">
+                                                    <p className="text-xs md:text-sm font-semibold text-gray-900 truncate mt-1">
                                                         {event.title}
                                                     </p>
-                                                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                                                    <div className="flex items-center gap-1 text-[10px] md:text-xs text-gray-500 mt-0.5">
                                                         <User className="h-3 w-3" />
-                                                        {event.extendedProps.assignedToName}
+                                                        <span className="truncate">{event.extendedProps.assignedToName}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -461,80 +638,30 @@ export default function TaskCalendarSection({ employees }: TaskCalendarSectionPr
                         </div>
                     )}
 
-                    {/* Right sidebar - Selected date tasks */}
+                    {/* Right sidebar - Selected date tasks (DESKTOP ONLY) */}
                     {viewMode === "calendar" && (
-                        <div className="w-64 border-l border-slate-200 p-4 bg-slate-50">
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <p className="text-sm font-semibold text-gray-900">
-                                        {formatSelectedDate(selectedDate)}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                        {selectedDateEvents.length} tâche(s)
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                                {selectedDateEvents.length === 0 ? (
-                                    <p className="text-sm text-gray-500 text-center py-8">
-                                        Pas de tâches
-                                    </p>
-                                ) : (
-                                    selectedDateEvents.map((event) => {
-                                        const typeColors = TASK_TYPE_COLORS[event.extendedProps.type];
-                                        const isAssignedToMe = event.extendedProps.assignedToId === currentUserId;
-                                        const canComplete = isAssignedToMe && event.extendedProps.status !== "COMPLETED";
-
-                                        return (
-                                            <div
-                                                key={event.id}
-                                                className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm"
-                                            >
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={event.extendedProps.status === "COMPLETED"}
-                                                        disabled={!canComplete}
-                                                        onChange={() => canComplete && handleComplete(event)}
-                                                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                                    />
-                                                    <span
-                                                        className={`px-2 py-0.5 rounded text-[10px] font-semibold ${typeColors.bg} ${typeColors.text}`}
-                                                    >
-                                                        {TASK_TYPE_LABELS[event.extendedProps.type]}
-                                                    </span>
-                                                </div>
-                                                <p
-                                                    onClick={() => handleView(event)}
-                                                    className="text-sm font-medium text-gray-900 mb-1 cursor-pointer hover:text-blue-600"
-                                                >
-                                                    {event.title}
-                                                </p>
-                                                <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-[9px] font-bold">
-                                                        {event.extendedProps.assignedToName?.charAt(0) || "?"}
-                                                    </div>
-                                                    <span className="truncate">{event.extendedProps.assignedToName}</span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-
-                            {/* Add task for selected date */}
-                            {isAdmin && (
-                                <button
-                                    onClick={() => setShowAddModal(true)}
-                                    className="w-full mt-4 flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-blue-600 py-2"
-                                >
-                                    Add Task <Plus className="h-4 w-4" />
-                                </button>
-                            )}
+                        <div className="hidden md:block w-64 border-l border-slate-200 p-4 bg-slate-50">
+                            <TasksPanelContent />
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* Mobile Drawer Backdrop */}
+            {isTasksOpen && (
+                <div
+                    className="md:hidden fixed inset-0 bg-black/40 z-40 transition-opacity"
+                    onClick={() => setIsTasksOpen(false)}
+                    aria-hidden="true"
+                />
+            )}
+
+            {/* Mobile Drawer */}
+            <div
+                className={`md:hidden fixed inset-y-0 right-0 w-[85%] max-w-sm bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out p-4 ${isTasksOpen ? "translate-x-0" : "translate-x-full"
+                    }`}
+            >
+                <TasksPanelContent />
             </div>
 
             {/* Modals */}
