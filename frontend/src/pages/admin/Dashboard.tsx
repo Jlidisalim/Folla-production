@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/pages/admin/Dashboard.tsx
-import { useEffect, useMemo, useState } from "react";
-import api from "@/lib/api";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import api, { createAuthenticatedApi } from "@/lib/api";
+import { useAuth } from "@clerk/clerk-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ResponsiveContainer,
@@ -103,6 +104,7 @@ function dayLabel(day: string) {
 }
 
 export default function Dashboard() {
+  const { getToken } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,19 +125,23 @@ export default function Dashboard() {
   // baseURL for making absolute URLs to images
   const baseURL = (api as any).defaults?.baseURL || "http://localhost:4000";
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      // Get authenticated API instance
+      const token = await getToken();
+      const authApi = token ? createAuthenticatedApi(token) : api;
+
       const [
         dashRes,
         salesOverviewRes,
         visitorStatsRes,
         visitorTotalRes,
       ] = await Promise.allSettled([
-        api.get("/dashboard"),
-        api.get("/api/sales/overview"),
-        api.get("/api/visitors/stats?days=30"),
+        authApi.get("/dashboard"),
+        authApi.get("/api/sales/overview"),
+        api.get("/api/visitors/stats?days=30"), // visitors can be public
         api.get("/api/visitors/total"),
       ]);
 
@@ -157,9 +163,9 @@ export default function Dashboard() {
       setTotalSales(
         Number(
           d.totalRevenue ??
-            d.totalSales ??
-            salesOverview.totalRevenue ??
-            0
+          d.totalSales ??
+          salesOverview.totalRevenue ??
+          0
         )
       );
       setTotalOrders(
@@ -205,9 +211,9 @@ export default function Dashboard() {
         visitorStatsPayload
       )
         ? visitorStatsPayload.map((row: any) => ({
-            day: String(row.day ?? row.date ?? row.label ?? ""),
-            total: Number(row.total ?? row.count ?? row.value ?? 0),
-          }))
+          day: String(row.day ?? row.date ?? row.label ?? ""),
+          total: Number(row.total ?? row.count ?? row.value ?? 0),
+        }))
         : [];
       const filteredVisitorStats = visitorStatsNormalized
         .filter((row) => {
@@ -228,9 +234,9 @@ export default function Dashboard() {
       setVisitorTotal(
         Number(
           visitorTotalPayload.total ??
-            d.totalVisitors ??
-            salesOverview.totalVisitors ??
-            0
+          d.totalVisitors ??
+          salesOverview.totalVisitors ??
+          0
         )
       );
 
@@ -314,12 +320,12 @@ export default function Dashboard() {
         setSalesByRegion(mapRegionData(d.salesByRegion));
       } else {
         try {
-          const regRes = await api.get("/api/sales/regions");
+          const regRes = await authApi.get("/api/sales/regions");
           const regs = Array.isArray(regRes.data) ? regRes.data : [];
           setSalesByRegion(mapRegionData(regs));
         } catch {
           try {
-            const regRes = await api.get("/sales/regions");
+            const regRes = await authApi.get("/sales/regions");
             const regs = Array.isArray(regRes.data) ? regRes.data : [];
             setSalesByRegion(mapRegionData(regs));
           } catch {
@@ -335,12 +341,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
 
   const salesChartData = useMemo(
     () =>
@@ -356,10 +361,10 @@ export default function Dashboard() {
       visitorStats.length > 0
         ? visitorStats
         : Array.from({ length: 14 }).map((_, idx) => {
-            const d = new Date();
-            d.setDate(d.getDate() - (13 - idx));
-            return { day: d.toISOString().slice(0, 10), total: 0 };
-          });
+          const d = new Date();
+          d.setDate(d.getDate() - (13 - idx));
+          return { day: d.toISOString().slice(0, 10), total: 0 };
+        });
 
     return statsSource.map((stat) => ({
       label: dayLabel(stat.day),
@@ -435,8 +440,8 @@ export default function Dashboard() {
     chartMode === "sales"
       ? salesChartData
       : chartMode === "visitors"
-      ? visitorChartData
-      : [];
+        ? visitorChartData
+        : [];
   const chartGradientId =
     chartMode === "sales" ? "salesGradient" : "visitorsGradient";
   const chartStroke =
@@ -521,9 +526,8 @@ export default function Dashboard() {
     }
     // if normalized is already absolute (starts with http) use it, otherwise attach baseURL
     if (/^https?:\/\//i.test(normalized)) return normalized;
-    return `${baseURL.replace(/\/$/, "")}${
-      normalized.startsWith("/") ? "" : "/"
-    }${normalized}`;
+    return `${baseURL.replace(/\/$/, "")}${normalized.startsWith("/") ? "" : "/"
+      }${normalized}`;
   }
 
   // CSV export helper
@@ -613,9 +617,8 @@ export default function Dashboard() {
                   {formatCurrency(totalSales)}
                 </div>
                 <div
-                  className={`mt-2 text-xs font-medium ${
-                    growthMonthly >= 0 ? "text-green-600" : "text-red-600"
-                  } flex items-center gap-2`}
+                  className={`mt-2 text-xs font-medium ${growthMonthly >= 0 ? "text-green-600" : "text-red-600"
+                    } flex items-center gap-2`}
                 >
                   {growthMonthly >= 0 ? (
                     <ArrowUpRight className="w-3 h-3" />
@@ -650,9 +653,8 @@ export default function Dashboard() {
                   {totalOrders.toLocaleString()}
                 </div>
                 <div
-                  className={`mt-2 text-xs font-medium ${
-                    growthWeekly >= 0 ? "text-green-600" : "text-red-600"
-                  } flex items-center gap-2`}
+                  className={`mt-2 text-xs font-medium ${growthWeekly >= 0 ? "text-green-600" : "text-red-600"
+                    } flex items-center gap-2`}
                 >
                   {growthWeekly >= 0 ? (
                     <ArrowUpRight className="w-3 h-3" />
@@ -759,179 +761,176 @@ export default function Dashboard() {
           <Card className="rounded-xl">
             <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-              <CardTitle>{chartTitle}</CardTitle>
-              <p className="text-sm text-gray-500 mt-1">{chartSubtitle}</p>
-            </div>
-            <div className="flex gap-2 text-sm">
-              <button
-                onClick={() => setChartMode("sales")}
-                className={`px-3 py-1.5 rounded-full border transition-all ${
-                  chartMode === "sales"
+                <CardTitle>{chartTitle}</CardTitle>
+                <p className="text-sm text-gray-500 mt-1">{chartSubtitle}</p>
+              </div>
+              <div className="flex gap-2 text-sm">
+                <button
+                  onClick={() => setChartMode("sales")}
+                  className={`px-3 py-1.5 rounded-full border transition-all ${chartMode === "sales"
                     ? "bg-blue-600 text-white border-blue-600"
                     : "bg-white text-gray-600 border-gray-200"
-                }`}
-              >
-                Ventes
-              </button>
-              <button
-                onClick={() => setChartMode("visitors")}
-                className={`px-3 py-1.5 rounded-full border transition-all ${
-                  chartMode === "visitors"
+                    }`}
+                >
+                  Ventes
+                </button>
+                <button
+                  onClick={() => setChartMode("visitors")}
+                  className={`px-3 py-1.5 rounded-full border transition-all ${chartMode === "visitors"
                     ? "bg-amber-500 text-white border-amber-500"
                     : "bg-white text-gray-600 border-gray-200"
-                }`}
-              >
-                Visiteurs
-              </button>
-              <button
-                onClick={() => setChartMode("cancellations")}
-                className={`px-3 py-1.5 rounded-full border transition-all ${
-                  chartMode === "cancellations"
+                    }`}
+                >
+                  Visiteurs
+                </button>
+                <button
+                  onClick={() => setChartMode("cancellations")}
+                  className={`px-3 py-1.5 rounded-full border transition-all ${chartMode === "cancellations"
                     ? "bg-rose-500 text-white border-rose-500"
                     : "bg-white text-gray-600 border-gray-200"
-                }`}
-              >
-                Produits annulés
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-56 w-full">
-              {isCancellationMode ? (
-                cancellationLineData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={cancellationLineData}
-                      margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" stroke="#9CA3AF" />
-                      <YAxis stroke="#9CA3AF" allowDecimals={false} />
-                      <Tooltip
-                        formatter={(value: number, name: string) => [
-                          `${Number(value ?? 0)} cancels`,
-                          name,
-                        ]}
-                      />
-                      {cancellationSeriesDefs.map((series) => (
-                        <Line
-                          key={series.key}
-                          type="monotone"
-                          dataKey={series.key}
-                          stroke={series.color}
-                          strokeWidth={2}
-                          dot={false}
-                          name={series.title}
-                          isAnimationActive
-                        />
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-sm text-gray-500">
-                    No cancelled orders recorded for this period.
-                  </div>
-                )
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    key={chartMode}
-                    data={areaChartData}
-                    margin={{ top: 8, right: 16, left: -8, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="salesGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="#2563EB"
-                          stopOpacity={0.8}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#2563EB"
-                          stopOpacity={0.05}
-                        />
-                      </linearGradient>
-                      <linearGradient
-                        id="visitorsGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="#F97316"
-                          stopOpacity={0.8}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#F97316"
-                          stopOpacity={0.05}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="label" stroke="#9CA3AF" />
-                    <YAxis stroke="#9CA3AF" />
-                    <Tooltip
-                      formatter={(value: number) =>
-                        chartTooltipFormatter(Number(value ?? 0))
-                      }
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="total"
-                      stroke={chartStroke}
-                      fill={`url(#${chartGradientId})`}
-                      strokeWidth={2}
-                      isAnimationActive
-                      animationDuration={800}
-                    />
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      horizontal={false}
-                      vertical={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-            {isCancellationMode && cancellationLegend.length > 0 && (
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                {cancellationLegend.map((entry) => (
-                  <div
-                    key={entry.key}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: entry.color }}
-                      />
-                      <span className="text-sm font-medium">
-                        {entry.title}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-gray-800">
-                        {entry.total.toLocaleString()} au total
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Dernier jour : {entry.latest.toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    }`}
+                >
+                  Produits annulés
+                </button>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="h-56 w-full">
+                {isCancellationMode ? (
+                  cancellationLineData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={cancellationLineData}
+                        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" stroke="#9CA3AF" />
+                        <YAxis stroke="#9CA3AF" allowDecimals={false} />
+                        <Tooltip
+                          formatter={(value: number, name: string) => [
+                            `${Number(value ?? 0)} cancels`,
+                            name,
+                          ]}
+                        />
+                        {cancellationSeriesDefs.map((series) => (
+                          <Line
+                            key={series.key}
+                            type="monotone"
+                            dataKey={series.key}
+                            stroke={series.color}
+                            strokeWidth={2}
+                            dot={false}
+                            name={series.title}
+                            isAnimationActive
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-sm text-gray-500">
+                      No cancelled orders recorded for this period.
+                    </div>
+                  )
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      key={chartMode}
+                      data={areaChartData}
+                      margin={{ top: 8, right: 16, left: -8, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient
+                          id="salesGradient"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#2563EB"
+                            stopOpacity={0.8}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#2563EB"
+                            stopOpacity={0.05}
+                          />
+                        </linearGradient>
+                        <linearGradient
+                          id="visitorsGradient"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#F97316"
+                            stopOpacity={0.8}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#F97316"
+                            stopOpacity={0.05}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="label" stroke="#9CA3AF" />
+                      <YAxis stroke="#9CA3AF" />
+                      <Tooltip
+                        formatter={(value: number) =>
+                          chartTooltipFormatter(Number(value ?? 0))
+                        }
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="total"
+                        stroke={chartStroke}
+                        fill={`url(#${chartGradientId})`}
+                        strokeWidth={2}
+                        isAnimationActive
+                        animationDuration={800}
+                      />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        horizontal={false}
+                        vertical={false}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+              {isCancellationMode && cancellationLegend.length > 0 && (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  {cancellationLegend.map((entry) => (
+                    <div
+                      key={entry.key}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: entry.color }}
+                        />
+                        <span className="text-sm font-medium">
+                          {entry.title}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-gray-800">
+                          {entry.total.toLocaleString()} au total
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Dernier jour : {entry.latest.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="rounded-xl">
             <CardHeader>
@@ -1028,7 +1027,7 @@ export default function Dashboard() {
         </div>
 
         <div className="space-y-6">
-          
+
           <Card className="rounded-xl">
             <CardHeader>
               <CardTitle>Ventes par région</CardTitle>
