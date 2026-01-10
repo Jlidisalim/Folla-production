@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { X, Plus, Check, Image as ImageIcon } from "lucide-react";
-import api from "@/lib/api";
+import api, { useAuthenticatedApi } from "@/lib/api";
 import { useNotifications } from "@/components/NotificationProvider";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 
@@ -206,6 +206,7 @@ export default function EditProduct() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { notify } = useNotifications();
+  const { authApi } = useAuthenticatedApi();
 
   const [form, setForm] = useState({
     title: "",
@@ -965,10 +966,15 @@ export default function EditProduct() {
     const locals = gallery.filter((g) => g.file) as GalleryItem[];
     if (!locals.length) return { urls: [], idToUrl: new Map() };
 
+    const authenticatedApi = await authApi();
+    if (!authenticatedApi) {
+      throw new Error("Not authenticated - please sign in again");
+    }
+
     const fd = new FormData();
     locals.forEach((g) => g.file && fd.append("files", g.file));
 
-    const res = await api.post("/products/upload", fd, {
+    const res = await authenticatedApi.post("/products/upload", fd, {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
@@ -1042,7 +1048,13 @@ export default function EditProduct() {
           })
           : [];
 
-      await api.patch(`/products/${id}`, {
+      // Get authenticated API for the patch call
+      const authenticatedApi = await authApi();
+      if (!authenticatedApi) {
+        throw new Error("Not authenticated - please sign in again");
+      }
+
+      await authenticatedApi.patch(`/products/${id}`, {
         title: form.title.trim(),
         productId: form.productId.trim(),
         category: form.category.trim(),

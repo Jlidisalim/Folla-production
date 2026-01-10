@@ -12,7 +12,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { X, Plus, Check, Image as ImageIcon } from "lucide-react";
-import api from "@/lib/api";
+import api, { useAuthenticatedApi } from "@/lib/api";
 import { useNotifications } from "@/components/NotificationProvider";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 
@@ -234,6 +234,7 @@ const INITIAL_FORM = {
 
 export default function AddProduct() {
   const { notify } = useNotifications();
+  const { authApi } = useAuthenticatedApi();
 
   // form state
   const [form, setForm] = useState(INITIAL_FORM);
@@ -626,9 +627,15 @@ export default function AddProduct() {
   // upload
   const uploadImages = async (): Promise<string[]> => {
     if (!media.length) return [];
+
+    const authenticatedApi = await authApi();
+    if (!authenticatedApi) {
+      throw new Error("Not authenticated - please sign in again");
+    }
+
     const fd = new FormData();
     media.forEach((m) => fd.append("files", m.file));
-    const res = await api.post("/products/upload", fd, {
+    const res = await authenticatedApi.post("/products/upload", fd, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data?.urls ?? [];
@@ -744,7 +751,13 @@ export default function AddProduct() {
         isNovelty: form.category === "Nouveautés",
       };
 
-      await api.post("/products", payload);
+      // Get authenticated API for the create call
+      const authenticatedApi = await authApi();
+      if (!authenticatedApi) {
+        throw new Error("Not authenticated - please sign in again");
+      }
+
+      await authenticatedApi.post("/products", payload);
 
       notify({
         title: "Produit créé",
