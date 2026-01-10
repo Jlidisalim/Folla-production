@@ -1402,18 +1402,18 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={handleAddToCart}
                 disabled={!canAdd}
-                className="flex-1 border border-gray-300 bg-white text-gray-900 px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                className="flex-1 min-w-0 border border-gray-300 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium bg-white hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm whitespace-nowrap"
               >
                 Ajouter au panier
               </button>
               <button
                 onClick={handleBuyNow}
                 disabled={!canAdd}
-                className="flex-1 bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                className="flex-1 min-w-0 bg-gradient-to-r from-gray-800 to-gray-900 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:from-gray-700 hover:to-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md whitespace-nowrap"
               >
                 Acheter maintenant
               </button>
@@ -1428,14 +1428,14 @@ export default function ProductDetail() {
                     image: mainImage || galleryImages[0],
                   });
                 }}
-                className={`p-2.5 rounded-lg transition-all ${isInWishlist(String(product.id))
-                  ? "bg-gray-900 text-white"
-                  : "bg-white border border-gray-300 hover:border-gray-400 text-gray-600 hover:text-gray-900"
+                className={`p-3 border rounded-md transition-colors ${isInWishlist(String(product.id))
+                  ? "bg-black text-white border-black"
+                  : "border-gray-300 hover:border-black"
                   }`}
                 aria-label={isInWishlist(String(product.id)) ? "Retirer des favoris" : "Ajouter aux favoris"}
               >
                 <Heart
-                  className={`w-5 h-5 ${isInWishlist(String(product.id)) ? "fill-white text-white" : ""
+                  className={`w-5 h-5 ${isInWishlist(String(product.id)) ? "fill-white text-white" : "text-gray-600"
                     }`}
                 />
               </button>
