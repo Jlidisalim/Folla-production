@@ -126,7 +126,7 @@ const Apropos = () => {
                         {/* Right Side - Content */}
                         <div className="order-1 lg:order-2">
                             <h2 className="text-4xl font-bold text-black mb-6">
-                                Notre Histoire
+                                Notre Historique
                             </h2>
                             <p className="text-gray-600 text-lg leading-relaxed mb-6">
                                 Tout a commencé par un voyage dans les régions artisanales de la Tunisie. 
