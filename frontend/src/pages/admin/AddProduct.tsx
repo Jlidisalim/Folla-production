@@ -2229,23 +2229,13 @@ export default function AddProduct() {
                     Min. détail (pièce)
                   </label>
                   <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                    type="number"
+                    min="1"
+                    step="1"
                     value={form.minOrderQtyRetail}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setForm((p) => ({ ...p, minOrderQtyRetail: val }));
-                    }}
-                    onBlur={(e) => {
-                      const num = parseInt(e.target.value, 10);
-                      if (!num || num < 1) {
-                        setForm((p) => ({ ...p, minOrderQtyRetail: "1" }));
-                      }
-                    }}
+                    onChange={(e) => setForm((p) => ({ ...p, minOrderQtyRetail: e.target.value }))}
                     placeholder="1"
-                    className={`border border-gray-300 p-2 w-full rounded-md ${form.saleType === "quantity" ? "bg-gray-100 text-gray-500" : ""
-                      }`}
+                    className={`border border-gray-300 p-2 w-full rounded-md ${form.saleType === "quantity" ? "bg-gray-100 text-gray-500" : ""}`}
                     disabled={form.saleType === "quantity"}
                   />
                   <p className="text-xs text-gray-500 mt-1">
@@ -2257,23 +2247,13 @@ export default function AddProduct() {
                     Min. gros (quantité)
                   </label>
                   <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                    type="number"
+                    min="1"
+                    step="1"
                     value={form.minOrderQtyWholesale}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setForm((p) => ({ ...p, minOrderQtyWholesale: val }));
-                    }}
-                    onBlur={(e) => {
-                      const num = parseInt(e.target.value, 10);
-                      if (!num || num < 1) {
-                        setForm((p) => ({ ...p, minOrderQtyWholesale: "1" }));
-                      }
-                    }}
+                    onChange={(e) => setForm((p) => ({ ...p, minOrderQtyWholesale: e.target.value }))}
                     placeholder="10"
-                    className={`border border-gray-300 p-2 w-full rounded-md ${form.saleType === "piece" ? "bg-gray-100 text-gray-500" : ""
-                      }`}
+                    className={`border border-gray-300 p-2 w-full rounded-md ${form.saleType === "piece" ? "bg-gray-100 text-gray-500" : ""}`}
                     disabled={form.saleType === "piece"}
                   />
                   <p className="text-xs text-gray-500 mt-1">
