@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { jwtAuth, AuthenticatedRequest } from "../middleware/jwtAuth";
 import * as cartService from "../services/cart.service";
+import { validateCart, detectPriceChanges, type CartItemInput } from "../services/validateCart.service";
 import { PrismaClient } from "@prisma/client";
 import { getEffectiveMinQty, validateCartQuantity, type MinQtyProduct, type MinQtyCombination, type PurchaseMode } from "../utils/minQtyValidation";
 
@@ -439,6 +440,53 @@ router.delete("/clear", jwtAuth, async (req: AuthenticatedRequest, res) => {
   } catch (err: any) {
     console.error("Clear cart error:", err);
     res.status(500).json({ error: err.message || "Failed to clear cart" });
+  }
+});
+
+/**
+ * POST /api/cart/validate
+ * Validate cart items against latest product data
+ * Returns normalized items with corrected prices/quantities and any issues
+ * 
+ * Body: {
+ *   items: Array<{ productId: number, combinationId?: string, quantity: number, unitType: "piece" | "quantity" }>
+ *   clientPrices?: Array<{ productId: number, combinationId?: string, unitPrice: number }>
+ * }
+ */
+router.post("/validate", async (req, res) => {
+  try {
+    const { items, clientPrices } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Items array is required" });
+    }
+
+    // Normalize items input
+    const cartItems: CartItemInput[] = items.map((item: any) => ({
+      productId: Number(item.productId),
+      combinationId: item.combinationId || null,
+      quantity: Math.max(1, Number(item.quantity) || 1),
+      unitType: item.unitType === "quantity" ? "quantity" : "piece",
+    }));
+
+    // Validate cart
+    const result = await validateCart(cartItems);
+
+    // Detect price changes if client provided prices
+    if (Array.isArray(clientPrices) && clientPrices.length > 0) {
+      const priceIssues = detectPriceChanges(clientPrices, result.normalizedItems);
+      result.issues.push(...priceIssues);
+
+      // If there are price changes, mark as not fully valid
+      if (priceIssues.length > 0) {
+        result.valid = false;
+      }
+    }
+
+    res.json(result);
+  } catch (err: any) {
+    console.error("Cart validation error:", err);
+    res.status(500).json({ error: err.message || "Failed to validate cart" });
   }
 });
 

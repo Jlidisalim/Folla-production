@@ -27,7 +27,7 @@ import {
 } from "@/lib/validators";
 
 const Checkout = () => {
-  const { cart, totalPrice, clearCart, shippingTotal, removeFromCart, isFreeShipping } = useCart();
+  const { cart, totalPrice, clearCart, shippingTotal, removeFromCart, isFreeShipping, validateCart } = useCart();
   const navigate = useNavigate();
   const { notify } = useNotifications();
 
@@ -261,6 +261,35 @@ const Checkout = () => {
 
     try {
       setIsSubmitting(true);
+
+      // === CART VALIDATION: Validate cart before order creation ===
+      // This ensures the cart is up-to-date with latest prices/stock before proceeding
+      const validationResult = await validateCart();
+      if (validationResult && !validationResult.valid) {
+        // Show notification about cart changes
+        const hasRemovals = validationResult.removedProductIds.length > 0;
+        const hasPriceChanges = validationResult.issues.some(i => i.type === 'price_changed');
+        const hasQtyChanges = validationResult.issues.some(i => i.type === 'quantity_adjusted');
+
+        let message = "Votre panier a été mis à jour.";
+        if (hasRemovals) {
+          message = "Certains produits ne sont plus disponibles et ont été retirés.";
+        } else if (hasPriceChanges) {
+          message = "Les prix de certains produits ont changé.";
+        } else if (hasQtyChanges) {
+          message = "Les quantités ont été ajustées selon le stock disponible.";
+        }
+
+        notify({
+          title: "Panier modifié",
+          message: message + " Veuillez vérifier avant de continuer.",
+          type: "info",
+          appearance: "light",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       const isPaymee = selectedPayment === "paymee_card";
       const payload = {
         address: form.address,
@@ -343,8 +372,27 @@ const Checkout = () => {
         navigate("/");
       }
     } catch (err) {
+      const status = (err as any)?.response?.status;
+      const responseData = (err as any)?.response?.data;
+
+      // Handle 409 Conflict - cart was stale
+      if (status === 409 && responseData?.validation) {
+        // Backend detected stale cart - refresh and inform user
+        notify({
+          title: "Panier modifié",
+          message: responseData.message || "Votre panier a été mis à jour. Veuillez vérifier avant de continuer.",
+          type: "info",
+          appearance: "light",
+        });
+
+        // Re-validate cart to update local state with backend data
+        await validateCart();
+        setIsSubmitting(false);
+        return;
+      }
+
       const apiMessage =
-        (err as any)?.response?.data?.error ||
+        responseData?.error ||
         (err as any)?.message ||
         "Une erreur est survenue. Veuillez reessayer.";
       console.error("Erreur commande:", err);

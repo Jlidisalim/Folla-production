@@ -10,6 +10,7 @@ import {
 } from "../services/stock.service";
 import { sendOrderEmails } from "../services/emailService";
 import { trackInitiateCheckout } from "../services/metaCapiService";
+import { validateCart, type CartItemInput } from "../services/validateCart.service";
 import logger from "../lib/logger";
 import {
   CreateOrderSchemaStrict,
@@ -129,6 +130,52 @@ router.post("/", async (req, res) => {
     const isCardPayment = paymentMethod === "paymee_card";
     const initialStatus = isCardPayment ? "pending_payment" : "pending";
     const initialPaymentStatus = isCardPayment ? "pending_payment" : "pending";
+
+    // === CART VALIDATION: Verify items against latest DB data ===
+    // This ensures no stale prices, stock, or removed products slip through
+    const cartItemsForValidation: CartItemInput[] = items.map((raw: any) => ({
+      productId: Number(raw.productId),
+      combinationId: raw.attributes?.combinationId || raw.combinationId || null,
+      quantity: Math.max(1, Number(raw.quantity ?? 1)),
+      unitType: (raw.unitType as "piece" | "quantity") || "piece",
+    }));
+
+    const validationResult = await validateCart(cartItemsForValidation);
+
+    // If validation found issues that prevent order (removed items, out of stock, etc.)
+    if (!validationResult.valid || validationResult.removedProductIds.length > 0) {
+      logger.warn({
+        issues: validationResult.issues,
+        removedProductIds: validationResult.removedProductIds
+      }, "Cart validation failed - stale cart data");
+
+      return res.status(409).json({
+        error: "Cart has changed",
+        message: "Votre panier a été modifié. Veuillez vérifier les changements avant de continuer.",
+        validation: validationResult,
+      });
+    }
+
+    // Check if client-provided total matches backend-computed total (with tolerance)
+    const clientTotal = Number(total);
+    const serverTotal = validationResult.totals.grandTotal;
+    const tolerance = 0.5; // Allow 0.50 DT tolerance for rounding
+
+    if (Math.abs(clientTotal - serverTotal) > tolerance) {
+      logger.warn({
+        clientTotal,
+        serverTotal,
+        difference: Math.abs(clientTotal - serverTotal)
+      }, "Total mismatch detected");
+
+      return res.status(409).json({
+        error: "Total mismatch",
+        message: "Le total a changé. Veuillez actualiser votre panier.",
+        validation: validationResult,
+        expectedTotal: serverTotal,
+        providedTotal: clientTotal,
+      });
+    }
 
     const order = await prisma.$transaction(async (tx) => {
       // Prepare items for stock consumption

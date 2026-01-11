@@ -36,6 +36,29 @@ export interface CartItem {
   ratingCount?: number;
 }
 
+// Validation issue types from backend
+export interface ValidationIssue {
+  type: 'removed' | 'quantity_adjusted' | 'price_changed' | 'out_of_stock' | 'invalid_combination' | 'below_min_qty';
+  productId: number;
+  combinationId?: string | null;
+  message: string;
+  details?: any;
+}
+
+export interface CartValidationResult {
+  valid: boolean;
+  normalizedItems: any[];
+  totals: {
+    itemsTotal: number;
+    shipping: number;
+    grandTotal: number;
+    freeShippingThreshold: number;
+    isFreeShipping: boolean;
+  };
+  issues: ValidationIssue[];
+  removedProductIds: number[];
+}
+
 type IncomingItem = Partial<CartItem> & {
   productId: string | number;
   title: string;
@@ -58,6 +81,7 @@ interface CartContextType {
   removeFromCart: (lineId: string) => Promise<void>;
   updateQuantity: (lineId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
+  validateCart: () => Promise<CartValidationResult | null>;
   totalItems: number;
   totalQuantity: number;
   totalPrice: number;
@@ -66,6 +90,7 @@ interface CartContextType {
   freeShippingThresholdDt: number;
   amountUntilFreeShipping: number;
   loading: boolean;
+  lastValidation: CartValidationResult | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -138,6 +163,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { userId, isSignedIn, getToken } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastValidation, setLastValidation] = useState<CartValidationResult | null>(null);
   const [shopSettings, setShopSettings] = useState({
     defaultShippingFeeDt: DEFAULT_SHIPPING_FEE,
     freeShippingThresholdDt: DEFAULT_FREE_SHIPPING_THRESHOLD,
@@ -449,6 +475,92 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const amountUntilFreeShipping = isFreeShipping ? 0 : Math.max(0, freeShippingThresholdDt - totalPrice);
   const shippingTotal = cart.length === 0 ? 0 : (isFreeShipping ? 0 : defaultShippingFeeDt);
 
+  /**
+   * Validate cart against backend (latest DB data)
+   * Updates cart with normalized items and returns validation result
+   */
+  const validateCart = useCallback(async (): Promise<CartValidationResult | null> => {
+    if (cart.length === 0) {
+      return null;
+    }
+
+    try {
+      // Build items for validation
+      const itemsForValidation = cart.map(item => ({
+        productId: Number(item.productId),
+        combinationId: item.combinationId || null,
+        quantity: item.quantity,
+        unitType: item.pricingMode,
+      }));
+
+      // Build client prices for comparison
+      const clientPrices = cart.map(item => ({
+        productId: Number(item.productId),
+        combinationId: item.combinationId || null,
+        unitPrice: item.unitPrice,
+      }));
+
+      const res = await api.post('/api/cart/validate', {
+        items: itemsForValidation,
+        clientPrices,
+      });
+
+      const result: CartValidationResult = res.data;
+      setLastValidation(result);
+
+      // Update cart with normalized items from backend
+      if (result.normalizedItems.length > 0) {
+        const updatedCart: CartItem[] = result.normalizedItems.map(item => {
+          const lineId = buildLineId(
+            item.productId,
+            item.combinationId,
+            item.unitType,
+            {}
+          );
+          return {
+            lineId,
+            productId: String(item.productId),
+            title: item.title,
+            unitPrice: item.unitPrice,
+            quantity: item.quantity,
+            image: normalizeImage(item.image),
+            pricingMode: item.unitType as PricingMode,
+            combinationId: item.combinationId || null,
+            selectedOptions: {},
+            variantLabel: item.variantLabel || null,
+            minQty: item.minQty,
+            maxQty: item.maxQty || undefined,
+          };
+        });
+        setCart(updatedCart);
+
+        // For logged-in users, also update sessionStorage
+        if (isSignedIn && userId) {
+          // DB cart is already the source of truth, no need to update
+        } else {
+          // Guest: update sessionStorage with validated cart
+          try {
+            sessionStorage.setItem(GUEST_CART_KEY, JSON.stringify(updatedCart));
+          } catch {
+            // Silent fail
+          }
+        }
+      }
+
+      // Handle removed items
+      if (result.removedProductIds.length > 0) {
+        setCart(prev =>
+          prev.filter(item => !result.removedProductIds.includes(Number(item.productId)))
+        );
+      }
+
+      return result;
+    } catch (err) {
+      console.error('[Cart] Validation failed:', err);
+      return null;
+    }
+  }, [cart, isSignedIn, userId]);
+
   return (
     <CartContext.Provider
       value={{
@@ -457,6 +569,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         removeFromCart,
         updateQuantity,
         clearCart,
+        validateCart,
         totalItems,
         totalQuantity,
         totalPrice,
@@ -465,6 +578,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         freeShippingThresholdDt,
         amountUntilFreeShipping,
         loading,
+        lastValidation,
       }}
     >
       {children}
